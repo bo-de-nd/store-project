@@ -32,6 +32,17 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS coupons (
   code TEXT PRIMARY KEY,
   percent_off INTEGER NOT NULL,
@@ -99,7 +110,27 @@ function seedProducts() {
   }
 }
 
+function seedSettings() {
+  const defaults = {
+    store_name: process.env.STORE_NAME || "متجري",
+    store_logo: "",
+    whatsapp: process.env.STORE_WHATSAPP || "",
+    primary_color: "#1D4ED8",
+  };
+  const insert = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
+  for (const [k, v] of Object.entries(defaults)) insert.run(k, v);
+}
+
+function seedCategories() {
+  const count = db.prepare("SELECT COUNT(*) AS c FROM categories").get().c;
+  if (count > 0) return;
+  const insert = db.prepare("INSERT INTO categories (name, sort_order) VALUES (?, ?)");
+  ["ملابس", "أحذية", "عطور"].forEach((name, i) => insert.run(name, i));
+}
+
 ensureAdmin();
 seedProducts();
+seedSettings();
+seedCategories();
 
 module.exports = db;

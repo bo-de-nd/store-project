@@ -49,10 +49,12 @@ router.post("/", (req, res) => {
   const order = parseOrder(db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId));
 
   // رابط واتساب جاهز برسالة معبأة مسبقًا لإرسالها لصاحبة المتجر
+  const settings = db.prepare("SELECT * FROM settings").all().reduce((o, r) => ((o[r.key] = r.value), o), {});
+  const whatsappNumber = settings.whatsapp || process.env.STORE_WHATSAPP;
   const message = `طلب جديد ${orderId}\nالاسم: ${customerName}\nالمدينة: ${customerCity || "-"}\nالمنتجات:\n${checked
     .map((i) => `- ${i.name} (${i.size}) × ${i.qty}`)
     .join("\n")}\nالإجمالي: ${total} ر.ي`;
-  const whatsappLink = `https://wa.me/${process.env.STORE_WHATSAPP}?text=${encodeURIComponent(message)}`;
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
   res.status(201).json({ order, whatsappLink });
 });
@@ -94,13 +96,15 @@ router.get("/:id/invoice", (req, res) => {
   if (!row) return res.status(404).json({ error: "الطلب غير موجود" });
   const order = parseOrder(row);
 
+  const settings = db.prepare("SELECT * FROM settings").all().reduce((o, r) => ((o[r.key] = r.value), o), {});
+
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `inline; filename=invoice-${order.id}.pdf`);
 
   const doc = new PDFDocument({ margin: 40 });
   doc.pipe(res);
 
-  doc.fontSize(18).text(`${process.env.STORE_NAME || "المتجر"} - فاتورة`, { align: "right" });
+  doc.fontSize(18).text(`${settings.store_name || process.env.STORE_NAME || "المتجر"} - فاتورة`, { align: "right" });
   doc.moveDown();
   doc.fontSize(11).text(`رقم الطلب: ${order.id}`, { align: "right" });
   doc.text(`التاريخ: ${order.created_at}`, { align: "right" });

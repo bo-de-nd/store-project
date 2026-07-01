@@ -12,6 +12,26 @@ async function handle(res) {
 }
 
 export const api = {
+  // إعدادات المتجر
+  getSettings: () => fetch(`${API_URL}/settings`).then(handle),
+  updateSettings: (payload) =>
+    fetch(`${API_URL}/settings`, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(payload) }).then(handle),
+
+  // تصنيفات
+  getCategories: () => fetch(`${API_URL}/categories`).then(handle),
+  createCategory: (name) =>
+    fetch(`${API_URL}/categories`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ name }) }).then(handle),
+  deleteCategory: (id) => fetch(`${API_URL}/categories/${id}`, { method: "DELETE", headers: authHeaders() }).then(handle),
+
+  // رفع صورة
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return fetch(`${API_URL}/upload`, { method: "POST", headers: authHeaders(), body: formData }).then(handle);
+  },
+  fileUrl: (path) => (path?.startsWith("http") ? path : `${API_URL.replace("/api", "")}${path || ""}`),
+  shareUrl: (productId) => `${API_URL.replace('/api', '')}/share/product/${productId}`,
+
   // منتجات
   getProducts: () => fetch(`${API_URL}/products`).then(handle),
   createProduct: (p) =>
