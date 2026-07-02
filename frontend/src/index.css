@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── خط عربي احترافي ── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --brand: #1D4ED8;
+  --brand-dark: #1e3a8a;
+}
+
+* { font-family: 'Cairo', 'Segoe UI', Arial, sans-serif; }
+
+/* ── إخفاء شريط التمرير الأفقي في التصنيفات ── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Splash animation ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+
+/* ── نبضة السبلاش ── */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1;   }
+}
+
+/* ── تمييز الروابط في الفواتير ── */
+a { text-decoration: none; }
