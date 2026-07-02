@@ -1,29 +1,31 @@
 const express = require("express");
-const db = require("../db");
+const { query } = require("../db");
 const { requireAdmin } = require("../middleware");
-
 const router = express.Router();
 
-function getAllSettings() {
-  const rows = db.prepare("SELECT * FROM settings").all();
-  const obj = {};
-  rows.forEach((r) => (obj[r.key] = r.value));
-  return obj;
+async function getAllSettings() {
+  const res = await query("SELECT key, value FROM settings");
+  return res.rows.reduce((o, r) => { o[r.key] = r.value; return o; }, {});
 }
 
-// عرض الإعدادات (عام - تحتاجها الواجهة لعرض اسم المتجر والشعار)
-router.get("/", (req, res) => {
-  res.json(getAllSettings());
+router.get("/", async (req, res) => {
+  try { res.json(await getAllSettings()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// تحديث الإعدادات (أدمن فقط)
-router.put("/", requireAdmin, (req, res) => {
-  const allowedKeys = ["store_name", "store_logo", "whatsapp", "primary_color"];
-  const upsert = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
-  for (const key of allowedKeys) {
-    if (req.body[key] !== undefined) upsert.run(key, String(req.body[key]));
-  }
-  res.json(getAllSettings());
+router.put("/", requireAdmin, async (req, res) => {
+  try {
+    const allowed = ["store_name", "store_logo", "whatsapp", "primary_color"];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        await query(
+          "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          [key, String(req.body[key])]
+        );
+      }
+    }
+    res.json(await getAllSettings());
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

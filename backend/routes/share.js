@@ -1,42 +1,41 @@
 const express = require("express");
-const db = require("../db");
-
+const { query } = require("../db");
 const router = express.Router();
 
-function escapeHtml(s = "") {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function esc(s = "") {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
-// صفحة مشاركة للمنتج: تعرض صورة وعنوان وسعر المنتج كمعاينة عند مشاركة الرابط في واتساب،
-// ثم تحوّل الزائر تلقائيًا لصفحة المنتج الفعلية في الموقع
-router.get("/product/:id", (req, res) => {
-  const product = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id);
-  if (!product) return res.status(404).send("المنتج غير موجود");
+router.get("/product/:id", async (req, res) => {
+  try {
+    const r = await query("SELECT * FROM products WHERE id = $1", [req.params.id]);
+    if (!r.rows[0]) return res.status(404).send("المنتج غير موجود");
+    const product = r.rows[0];
+    const settingsRes = await query("SELECT key, value FROM settings");
+    const settings = settingsRes.rows.reduce((o, r) => { o[r.key] = r.value; return o; }, {});
+    const images  = product.images || [];
+    const image   = images[0] || "";
+    const frontendUrl = process.env.FRONTEND_ORIGIN || "";
+    const productUrl  = `${frontendUrl}/?product=${product.id}`;
+    const apiBase     = `${req.protocol}://${req.get("host")}`;
+    const absoluteImg = image.startsWith("http") ? image : `${apiBase}${image}`;
 
-  const settings = db.prepare("SELECT * FROM settings").all().reduce((o, r) => ((o[r.key] = r.value), o), {});
-  const images = JSON.parse(product.images || "[]");
-  const image = images[0] || "";
-  const frontendUrl = process.env.FRONTEND_ORIGIN || "";
-  const productPageUrl = `${frontendUrl}/?product=${product.id}`;
-  const apiBase = `${req.protocol}://${req.get("host")}`;
-  const absoluteImage = image.startsWith("http") ? image : `${apiBase}${image}`;
-
-  res.send(`<!doctype html>
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>${escapeHtml(product.name)} - ${escapeHtml(settings.store_name || "")}</title>
-  <meta property="og:title" content="${escapeHtml(product.name)}" />
-  <meta property="og:description" content="${escapeHtml(product.price)} ر.ي - ${escapeHtml(settings.store_name || "")}" />
-  <meta property="og:image" content="${escapeHtml(absoluteImage)}" />
-  <meta property="og:type" content="product" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta http-equiv="refresh" content="0; url=${escapeHtml(productPageUrl)}" />
+  <meta charset="UTF-8"/>
+  <title>${esc(product.name)} - ${esc(settings.store_name || "")}</title>
+  <meta property="og:title" content="${esc(product.name)}"/>
+  <meta property="og:description" content="${product.price} ر.ي - ${esc(settings.store_name || "")}"/>
+  <meta property="og:image" content="${esc(absoluteImg)}"/>
+  <meta property="og:type" content="product"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta http-equiv="refresh" content="0; url=${esc(productUrl)}"/>
 </head>
-<body>
-  جاري التحويل... إذا لم يتم تحويلك تلقائيًا، <a href="${escapeHtml(productPageUrl)}">اضغط هنا</a>.
-</body>
+<body>جاري التحويل... <a href="${esc(productUrl)}">اضغط هنا</a></body>
 </html>`);
+  } catch (e) { res.status(500).send("خطأ"); }
 });
 
 module.exports = router;
